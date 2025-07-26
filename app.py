@@ -2,11 +2,7 @@ import streamlit as st
 import sqlite3
 import hashlib
 import datetime
-from io import BytesIO
 import pandas as pd
-
-# Import your tabulature engine (assuming it's in a separate file)
-# from tabulature_engine import TabulatureEngine
 
 class UserManager:
     """Handle user authentication and usage tracking"""
@@ -28,8 +24,7 @@ class UserManager:
                 password_hash TEXT NOT NULL,
                 tier TEXT DEFAULT 'free',
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                last_login TIMESTAMP,
-                stripe_customer_id TEXT
+                last_login TIMESTAMP
             )
         ''')
         
@@ -149,9 +144,6 @@ def init_session_state():
         st.session_state.user_info = None
     if 'user_manager' not in st.session_state:
         st.session_state.user_manager = UserManager()
-    # Uncomment when you have the TabulatureEngine ready
-    # if 'tab_engine' not in st.session_state:
-    #     st.session_state.tab_engine = TabulatureEngine()
 
 def show_pricing_tiers():
     """Display pricing tiers"""
@@ -163,9 +155,9 @@ def show_pricing_tiers():
         st.markdown("""
         ### 🆓 Free Tier
         - **100 generations/month**
-        - Audio-to-tab transcription
-        - Basic MIDI generation
+        - Basic tab generation
         - Text file export
+        - Community support
         
         **$0/month**
         """)
@@ -175,14 +167,14 @@ def show_pricing_tiers():
         ### 🎸 Tier 1 - Musician
         - **500 generations/month**
         - All Free features
-        - Advanced chord detection
+        - Advanced features
         - PDF export
-        - Priority processing
+        - Priority support
         
         **$9.99/month**
         """)
         if st.button("Upgrade to Tier 1", key="tier1"):
-            st.info("Stripe integration would go here")
+            st.info("🚧 Payment integration coming soon!")
             
     with col3:
         st.markdown("""
@@ -196,11 +188,12 @@ def show_pricing_tiers():
         **$29.99/month**
         """)
         if st.button("Upgrade to Unlimited", key="unlimited"):
-            st.info("Stripe integration would go here")
+            st.info("🚧 Payment integration coming soon!")
 
 def show_login_page():
     """Display login/signup page"""
     st.title("🎸 TabGenius - AI Guitar Tablature Generator")
+    st.markdown("### Transform your music into guitar tabs with AI")
     
     tab1, tab2 = st.tabs(["Login", "Sign Up"])
     
@@ -240,6 +233,38 @@ def show_login_page():
                     st.error("Passwords don't match")
             else:
                 st.error("Please fill in all fields")
+
+def generate_demo_tab(prompt_type="text"):
+    """Generate demo tablature"""
+    demo_tabs = {
+        "blues": """E|---0---3---0---3---0---|
+B|---0---0---1---0---0---|
+G|---0---0---0---0---0---|
+D|---2---0---2---0---2---|
+A|---2---2---3---2---2---|
+E|---0---3---x---3---0---|""",
+        
+        "rock": """E|---3---2---0---2---3---|
+B|---3---3---1---3---3---|
+G|---0---2---0---2---0---|
+D|---0---0---2---0---0---|
+A|---2---x---3---x---2---|
+E|---3---x---x---x---3---|""",
+        
+        "country": """E|---0---2---3---2---0---|
+B|---1---3---3---3---1---|
+G|---0---2---0---2---0---|
+D|---2---0---0---0---2---|
+A|---3---x---2---x---3---|
+E|---x---x---3---x---x---|"""
+    }
+    
+    if "blues" in prompt_type.lower():
+        return demo_tabs["blues"]
+    elif "rock" in prompt_type.lower():
+        return demo_tabs["rock"]
+    else:
+        return demo_tabs["country"]
 
 def show_main_app():
     """Display main application interface"""
@@ -283,52 +308,9 @@ def show_main_app():
         st.write(f"Generations this month: {current_usage} (Unlimited)")
     
     # Main functionality tabs
-    tab1, tab2, tab3, tab4 = st.tabs(["Audio to Tab", "Text to Tab", "MIDI to Tab", "Upgrade Plan"])
+    tab1, tab2, tab3 = st.tabs(["Text to Tab", "Demo Audio", "Upgrade Plan"])
     
     with tab1:
-        st.header("🎵 Audio to Tablature")
-        st.write("Upload an audio file to generate guitar tablature")
-        
-        uploaded_file = st.file_uploader(
-            "Choose audio file", 
-            type=['mp3', 'wav', 'm4a', 'flac'],
-            help="Supported formats: MP3, WAV, M4A, FLAC"
-        )
-        
-        if uploaded_file is not None:
-            if st.button("Generate Tablature", key="audio_gen"):
-                if user_manager.can_generate(user_info['user_id'], user_info['tier']):
-                    with st.spinner("Processing audio..."):
-                        # Save uploaded file temporarily
-                        temp_path = f"temp_{uploaded_file.name}"
-                        with open(temp_path, "wb") as f:
-                            f.write(uploaded_file.getbuffer())
-                        
-                        # Process with your tabulature engine
-                        # tab_result = st.session_state.tab_engine.transcribe_audio_to_tab(temp_path)
-                        tab_result = "E|---0---2---3---2---0---|\nB|---1---3---3---3---1---|\nG|---0---2---0---2---0---|\nD|---2---0---0---0---2---|\nA|---3---x---2---x---3---|\nE|---x---x---3---x---x---|"  # Demo
-                        
-                        st.code(tab_result, language="text")
-                        
-                        # Log usage
-                        user_manager.log_usage(user_info['user_id'], "audio_to_tab")
-                        
-                        # Download button
-                        st.download_button(
-                            "Download Tab",
-                            tab_result,
-                            file_name=f"{uploaded_file.name}_tab.txt",
-                            mime="text/plain"
-                        )
-                        
-                        # Clean up temp file
-                        import os
-                        if os.path.exists(temp_path):
-                            os.remove(temp_path)
-                else:
-                    st.error("Generation limit reached! Please upgrade your plan.")
-    
-    with tab2:
         st.header("📝 Text to Tablature")
         st.write("Describe the music you want and AI will generate tablature")
         
@@ -340,29 +322,34 @@ def show_main_app():
         
         col1, col2 = st.columns(2)
         with col1:
-            num_measures = st.slider("Number of measures", 1, 8, 4)
+            complexity = st.selectbox("Style", ["Blues", "Rock", "Country", "Folk"])
         with col2:
-            complexity = st.selectbox("Complexity", ["Simple", "Intermediate", "Advanced"])
+            difficulty = st.selectbox("Difficulty", ["Beginner", "Intermediate", "Advanced"])
         
-        if st.button("Generate from Text", key="text_gen"):
+        if st.button("Generate Tablature", key="text_gen"):
             if prompt and user_manager.can_generate(user_info['user_id'], user_info['tier']):
                 with st.spinner("Generating tablature..."):
-                    # Process with your tabulature engine
-                    # music_info = st.session_state.tab_engine.interpret_prompt(prompt)
-                    # midi_path = st.session_state.tab_engine.generate_midi(music_info, num_measures=num_measures)
-                    # tab_result = st.session_state.tab_engine.midi_to_tab(midi_path)
+                    # Generate demo tab based on style
+                    tab_result = generate_demo_tab(complexity)
                     
-                    tab_result = "E|---0---2---3---2---0---|\nB|---1---3---3---3---1---|\nG|---0---2---0---2---0---|\nD|---2---0---0---0---2---|\nA|---3---x---2---x---3---|\nE|---x---x---3---x---x---|"  # Demo
-                    
+                    st.success("Tablature generated successfully!")
                     st.code(tab_result, language="text")
                     
                     # Log usage
                     user_manager.log_usage(user_info['user_id'], "text_to_tab")
                     
+                    # Download button
+                    tab_content = f"""Guitar Tablature - {complexity} Style
+Generated from: {prompt}
+
+{tab_result}
+
+Generated by TabGenius"""
+                    
                     st.download_button(
                         "Download Tab",
-                        tab_result,
-                        file_name="generated_tab.txt",
+                        tab_content,
+                        file_name=f"{complexity.lower()}_tab.txt",
                         mime="text/plain"
                     )
             elif not prompt:
@@ -370,49 +357,29 @@ def show_main_app():
             else:
                 st.error("Generation limit reached! Please upgrade your plan.")
     
-    with tab3:
-        st.header("🎹 MIDI to Tablature")
-        st.write("Convert MIDI files to guitar tablature")
+    with tab2:
+        st.header("🎵 Demo Features")
+        st.write("Audio processing features coming soon!")
         
-        midi_file = st.file_uploader(
-            "Choose MIDI file",
-            type=['mid', 'midi'],
-            help="Upload a MIDI file to convert to guitar tab"
+        st.info("🚧 **Coming Soon:**")
+        st.markdown("""
+        - **Audio-to-Tab Conversion**: Upload MP3, WAV, M4A files
+        - **Real-time Processing**: Advanced pitch detection
+        - **Chord Recognition**: Identify complex chords
+        - **MIDI Import**: Convert MIDI files to tabs
+        """)
+        
+        # Demo file upload (non-functional for now)
+        uploaded_file = st.file_uploader(
+            "Upload audio file (Demo)", 
+            type=['mp3', 'wav', 'm4a'],
+            help="Feature in development - coming soon!"
         )
         
-        if midi_file is not None:
-            if st.button("Convert MIDI", key="midi_gen"):
-                if user_manager.can_generate(user_info['user_id'], user_info['tier']):
-                    with st.spinner("Converting MIDI..."):
-                        # Save and process MIDI file
-                        temp_path = f"temp_{midi_file.name}"
-                        with open(temp_path, "wb") as f:
-                            f.write(midi_file.getbuffer())
-                        
-                        # Process with your tabulature engine
-                        # tab_result = st.session_state.tab_engine.midi_to_tab(temp_path)
-                        tab_result = "E|---0---2---3---2---0---|\nB|---1---3---3---3---1---|\nG|---0---2---0---2---0---|\nD|---2---0---0---0---2---|\nA|---3---x---2---x---3---|\nE|---x---x---3---x---x---|"  # Demo
-                        
-                        st.code(tab_result, language="text")
-                        
-                        # Log usage
-                        user_manager.log_usage(user_info['user_id'], "midi_to_tab")
-                        
-                        st.download_button(
-                            "Download Tab",
-                            tab_result,
-                            file_name=f"{midi_file.name}_tab.txt",
-                            mime="text/plain"
-                        )
-                        
-                        # Clean up
-                        import os
-                        if os.path.exists(temp_path):
-                            os.remove(temp_path)
-                else:
-                    st.error("Generation limit reached! Please upgrade your plan.")
+        if uploaded_file is not None:
+            st.warning("Audio processing is coming in the next update!")
     
-    with tab4:
+    with tab3:
         show_pricing_tiers()
 
 def main():
@@ -420,8 +387,31 @@ def main():
     st.set_page_config(
         page_title="TabGenius - AI Guitar Tablature Generator",
         page_icon="🎸",
-        layout="wide"
+        layout="wide",
+        initial_sidebar_state="collapsed"
     )
+    
+    # Custom CSS
+    st.markdown("""
+    <style>
+    .main > .block-container {
+        padding-top: 2rem;
+        padding-bottom: 2rem;
+    }
+    .stButton > button {
+        background-color: #FF6B6B;
+        color: white;
+        border-radius: 10px;
+        border: none;
+        padding: 0.5rem 1rem;
+        font-weight: bold;
+    }
+    .stButton > button:hover {
+        background-color: #FF5252;
+        color: white;
+    }
+    </style>
+    """, unsafe_allow_html=True)
     
     init_session_state()
     
