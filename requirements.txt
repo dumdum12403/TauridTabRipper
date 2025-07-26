@@ -1,11 +1,2 @@
 streamlit
-music21
-pretty-midi
-miditoolkit
-librosa
-pydub
-numpy
 pandas
-sqlite3-binary
-scipy
-soundfile
