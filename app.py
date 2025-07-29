@@ -308,7 +308,7 @@ def show_main_app():
         st.write(f"Generations this month: {current_usage} (Unlimited)")
     
     # Main functionality tabs
-    tab1, tab2, tab3 = st.tabs(["Text to Tab", "Demo Audio", "Upgrade Plan"])
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(["Text to Tab", "🎓 Music Lessons", "Demo Audio", "Upgrade Plan", "Billing"])
     
     with tab1:
         st.header("📝 Text to Tablature")
